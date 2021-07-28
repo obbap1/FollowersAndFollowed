@@ -172,8 +172,6 @@ func FetchMentions() error {
 
 	content := data["data"].([]interface{})
 
-	fmt.Printf("%+v", content)
-
 	mentionsChan := make(chan string, len(content))
 
 	for _, v := range content {
@@ -196,16 +194,14 @@ func FetchMentions() error {
 			// TODO: ratelimit here as well
 
 			// send tweet
-			tweetSent, r, err := client.Statuses.Update(tweet, &twitter.StatusUpdateParams{InReplyToStatusID: id})
-
-			fmt.Printf("%+v", r)
+			tweetSent, _, err := client.Statuses.Update(tweet, &twitter.StatusUpdateParams{InReplyToStatusID: id})
 
 			if err != nil {
 				mentionsChan <- fmt.Sprintf("Error is: %s", err)
 				return
 			}
 			// send signal
-			mentionsChan <- fmt.Sprintf("\n done with processing: %+v, %s", tweetSent, tweet)
+			mentionsChan <- fmt.Sprintf("\n done with processing: %s", tweetSent.Text)
 
 		}(text, id)
 
