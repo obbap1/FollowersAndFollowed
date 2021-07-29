@@ -22,17 +22,17 @@ jobs:
     - name: Test
       run: go test -v ./...
     - name: Docker Auth
-      run: docker login -u "{{env.U}}" -p "{{env.P}}" docker.io
+      run: docker login -u "${{secrets.U}}" -p "${{secrets.P}}" docker.io
     - name: Build Image
       run:  | 
         docker build --build-arg \ 
-          MY_ID={{env.MY_ID}} \ 
-          STUB_TWEET={{env.STUB_TWEET}} \ 
-          API_KEY={{env.API_KEY}} \ 
-          API_SECRET_KEY={{env.API_SECRET_KEY}} \ 
-          ACCESS_TOKEN={{env.ACCESS_TOKEN}} \ 
-          ACCESS_TOKEN_SECRET={{env.ACCESS_TOKEN_SECRET}} \ 
-          BEARER_TOKEN={{env.BEARER_TOKEN}} \ 
+          MY_ID="${{secrets.MY_ID}}" \ 
+          STUB_TWEET="${{secrets.STUB_TWEET}}" \ 
+          API_KEY="${{secrets.API_KEY}}" \ 
+          API_SECRET_KEY="${{secrets.API_SECRET_KEY}}" \ 
+          ACCESS_TOKEN="${{secrets.ACCESS_TOKEN}}" \ 
+          ACCESS_TOKEN_SECRET="${{secrets.ACCESS_TOKEN_SECRET}}" \ 
+          BEARER_TOKEN="${{secrets.BEARER_TOKEN}}" \ 
           --tag=pbaba11/amebo:latest
     - name: push to docker hub
       run: docker push pbaba11/amebo:latest
