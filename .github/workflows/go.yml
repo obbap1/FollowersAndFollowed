@@ -33,6 +33,6 @@ jobs:
           ACCESS_TOKEN="${{secrets.ACCESS_TOKEN}}" \ 
           ACCESS_TOKEN_SECRET="${{secrets.ACCESS_TOKEN_SECRET}}" \ 
           BEARER_TOKEN="${{secrets.BEARER_TOKEN}}" \ 
-          --tag=pbaba11/amebo:latest .
+          --tag pbaba11/amebo:latest .
     - name: push to docker hub
       run: docker push pbaba11/amebo:latest
