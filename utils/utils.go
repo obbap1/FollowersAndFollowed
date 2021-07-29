@@ -149,6 +149,8 @@ func FetchMentions(lruCache *cache.Cache) error {
 
 	MY_ID := os.Getenv("MY_ID")
 
+	fmt.Println("My id is...", MY_ID)
+
 	url := twitterBaseUrl + MY_ID + "/mentions"
 
 	fileData, err := ioutil.ReadFile(FileHolder)
@@ -158,6 +160,7 @@ func FetchMentions(lruCache *cache.Cache) error {
 	}
 
 	if len(fileData) != 0 {
+		fmt.Println("file data...", string(fileData))
 		url += "?since_id=" + strings.TrimSpace(string(fileData))
 	}
 
@@ -171,6 +174,10 @@ func FetchMentions(lruCache *cache.Cache) error {
 
 	if err != nil {
 		return fmt.Errorf("an error occured while fetching the request body: %s", err)
+	}
+
+	if body == nil {
+		return fmt.Errorf("no mentions are available")
 	}
 
 	err = json.Unmarshal(body, &data)
