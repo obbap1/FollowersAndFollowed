@@ -172,6 +172,8 @@ func FetchMentions(lruCache *cache.Cache) error {
 
 	body, err := ioutil.ReadAll(resp.Body)
 
+	fmt.Println("response...", resp.Body)
+
 	if err != nil {
 		return fmt.Errorf("an error occured while fetching the request body: %s", err)
 	}
@@ -184,6 +186,10 @@ func FetchMentions(lruCache *cache.Cache) error {
 
 	if err != nil {
 		return fmt.Errorf("an error occured while unmarshalling the request body: %s", err)
+	}
+
+	if data["meta"] == nil {
+		return fmt.Errorf("the response is empty")
 	}
 
 	resultMap := data["meta"].(map[string]interface{})
