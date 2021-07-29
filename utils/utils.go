@@ -76,7 +76,6 @@ func SetupTwitterClient() (*twitter.Client, *http.Client) {
 		return c, h
 	}
 	API_KEY, API_SECRET_KEY, ACCESS_TOKEN, ACCESS_TOKEN_SECRET := os.Getenv("API_KEY"), os.Getenv("API_SECRET_KEY"), os.Getenv("ACCESS_TOKEN"), os.Getenv("ACCESS_TOKEN_SECRET")
-	fmt.Println("keys..........***********........", API_KEY, API_SECRET_KEY, ACCESS_TOKEN, ACCESS_TOKEN_SECRET)
 	config := oauth1.NewConfig(API_KEY, API_SECRET_KEY)
 	token := oauth1.NewToken(ACCESS_TOKEN, ACCESS_TOKEN_SECRET)
 	httpClient := config.Client(oauth1.NoContext, token)
@@ -131,7 +130,7 @@ func FindFollowersAndFollowed(sentence string) (*FollowersAndFollowed, error) {
 	allArray = *setupArray(&allArray, &cleanRightArray)
 
 	if len(allArray) == 0 {
-		return nil, fmt.Errorf("no users to seach for")
+		return nil, fmt.Errorf("\n no users to seach for")
 	}
 
 	return &FollowersAndFollowed{
@@ -150,57 +149,52 @@ func FetchMentions(lruCache *cache.Cache) error {
 
 	MY_ID := os.Getenv("MY_ID")
 
-	fmt.Println("My id is...", MY_ID)
-
 	url := twitterBaseUrl + MY_ID + "/mentions"
 
 	fileData, err := ioutil.ReadFile(FileHolder)
 
 	if err != nil {
-		return fmt.Errorf("an error occured while reading file %s: %s", FileHolder, err)
+		return fmt.Errorf("\n an error occured while reading file %s: %s", FileHolder, err)
 	}
 
 	if len(fileData) != 0 {
-		fmt.Println("file data...", string(fileData))
 		url += "?since_id=" + strings.TrimSpace(string(fileData))
 	}
 
 	resp, err := httpClient.Get(url)
 
 	if err != nil {
-		return fmt.Errorf("an error occured while fetching the user's details: %s", err)
+		return fmt.Errorf("\n an error occured while fetching the user's details: %s", err)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 
-	fmt.Println("response...", resp.Body)
-
 	if err != nil {
-		return fmt.Errorf("an error occured while fetching the request body: %s", err)
+		return fmt.Errorf("\n an error occured while fetching the request body: %s", err)
 	}
 
 	if body == nil {
-		return fmt.Errorf("no mentions are available")
+		return fmt.Errorf("\n no mentions are available")
 	}
 
 	err = json.Unmarshal(body, &data)
 
 	if err != nil {
-		return fmt.Errorf("an error occured while unmarshalling the request body: %s", err)
+		return fmt.Errorf("\n an error occured while unmarshalling the request body: %s", err)
 	}
 
 	if data["meta"] == nil {
-		return fmt.Errorf("the response is empty")
+		return fmt.Errorf("\n the response is empty")
 	}
 
 	resultMap := data["meta"].(map[string]interface{})
 
 	if resultMap["result_count"].(float64) == 0 {
-		fmt.Println("There are no new mentions!")
+		fmt.Println("\n There are no new mentions!")
 		return nil
 	}
 
-	fmt.Printf("Number of mentions to process: %f \n", resultMap["result_count"].(float64))
+	fmt.Printf("\n Number of mentions to process: %f \n", resultMap["result_count"].(float64))
 
 	content := data["data"].([]interface{})
 
@@ -214,7 +208,7 @@ func FetchMentions(lruCache *cache.Cache) error {
 		id, err := strconv.ParseInt(vi["id"].(string), 10, 64)
 
 		if err != nil {
-			return fmt.Errorf("error while parsing int64: %s", err)
+			return fmt.Errorf("\n error while parsing int64: %s", err)
 		}
 
 		if k == len(content)-1 {
@@ -224,13 +218,13 @@ func FetchMentions(lruCache *cache.Cache) error {
 		go func(s string, id int64) {
 			tweet, err := FetchResults(s, lruCache)
 			if err != nil {
-				mentionsChan <- fmt.Sprintf("Error is: %s", err)
+				mentionsChan <- fmt.Sprintf("\n Error is: %s", err)
 				return
 			}
 			// TODO: ratelimit here as well
 
 			if err != nil {
-				mentionsChan <- fmt.Sprintf("Error is: %s", err)
+				mentionsChan <- fmt.Sprintf("\n Error is: %s", err)
 				return
 			}
 
@@ -241,7 +235,7 @@ func FetchMentions(lruCache *cache.Cache) error {
 				// send tweet
 				tweetSent, _, err := client.Statuses.Update(tweet, &twitter.StatusUpdateParams{InReplyToStatusID: id})
 				if err != nil {
-					mentionsChan <- fmt.Sprintf("Error is: %s", err)
+					mentionsChan <- fmt.Sprintf("\n Error is: %s", err)
 					return
 				}
 				// send signal
@@ -265,18 +259,18 @@ func FetchResults(sentence string, lruCache *cache.Cache) (string, error) {
 
 	values, err := FindFollowersAndFollowed(sentence)
 	if err != nil {
-		return "", fmt.Errorf("an error occured while formatting the sentence: %s", err)
+		return "", fmt.Errorf("\n an error occured while formatting the sentence: %s", err)
 	}
 
 	client, _ := SetupTwitterClient()
 
 	users, _, err := client.Users.Lookup(&twitter.UserLookupParams{ScreenName: values.AllArray})
 	if err != nil {
-		return "", fmt.Errorf("an error occured while searching for the users on twitter: %s", err)
+		return "", fmt.Errorf("\n an error occured while searching for the users on twitter: %s", err)
 	}
 
 	if len(users) != len(values.AllArray) {
-		return "", fmt.Errorf("%d out of %d of the usernames are invalid", len(values.AllArray)-len(users), len(values.AllArray))
+		return "", fmt.Errorf("\n %d out of %d of the usernames are invalid", len(values.AllArray)-len(users), len(values.AllArray))
 	}
 
 	response := ""
@@ -287,27 +281,27 @@ func FetchResults(sentence string, lruCache *cache.Cache) (string, error) {
 
 		rateLimit := limit.Resources.Friends["/friends/list"]
 
-		fmt.Printf("%d of %d requests are left", rateLimit.Remaining, rateLimit.Limit)
+		fmt.Printf("\n %d of %d requests are left", rateLimit.Remaining, rateLimit.Limit)
 
 		if rateLimit.Remaining == 0 {
 			duration := int64(rateLimit.Reset) - time.Now().Unix()
-			fmt.Printf("Sleeping for %d seconds.........******************..............*********", duration)
+			fmt.Printf("\n Sleeping for %d seconds.........******************..............*********", duration)
 			time.Sleep(time.Duration(duration) * time.Second)
 		}
 
 		if err != nil {
-			return "", fmt.Errorf("an error occured while fetching the rate limits: %s", err)
+			return "", fmt.Errorf("\n an error occured while fetching the rate limits: %s", err)
 		}
 
 		resp, _, err := client.Friends.IDs(&twitter.FriendIDParams{ScreenName: user})
 		if err != nil {
-			return "", fmt.Errorf("an error occured while fetching the user's details: %s", err)
+			return "", fmt.Errorf("\n an error occured while fetching the user's details: %s", err)
 		}
 
 		for _, follower := range values.RightArray {
 			// check if value is in cache
 			if lruCache.Contains(user + ":" + follower) {
-				fmt.Printf("Getting value for %s and %s from cache!", user, follower)
+				fmt.Printf("\n Getting value for %s and %s from cache!", user, follower)
 				if val, ok := lruCache.Get(user + ":" + follower); ok {
 					if val.(bool) {
 						response += FormatSuccessMessage(follower, user)
@@ -344,7 +338,7 @@ func FetchResults(sentence string, lruCache *cache.Cache) (string, error) {
 			for !found && cursor != 0 {
 				resp, _, err := client.Friends.IDs(&twitter.FriendIDParams{ScreenName: user, Cursor: cursor})
 				if err != nil {
-					return "", fmt.Errorf("an error occured while fetching the user's details: %s", err)
+					return "", fmt.Errorf("\n an error occured while fetching the user's details: %s", err)
 				}
 
 				cursor = resp.NextCursor
