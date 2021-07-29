@@ -25,6 +25,7 @@ RUN go build -o executable .
 
 FROM alpine:latest
 WORKDIR /root/
+RUN touch holder.data
 COPY --from=builder /app/executable ./
 
 CMD [ "./executable" ]
