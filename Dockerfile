@@ -23,7 +23,7 @@ ENV BEARER_TOKEN=${BEARER_TOKEN}
 
 RUN go build -o executable .
 
-FROM alpine:latest
+FROM builder
 WORKDIR /root/
 RUN touch holder.data && echo 1420578779819294721 > holder.data
 COPY --from=builder /app/executable ./
