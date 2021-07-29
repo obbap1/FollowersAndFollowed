@@ -1,5 +1,5 @@
 FROM golang:1.16.3-alpine AS builder
-WORKDIR /app
+WORKDIR /app/
 COPY go.mod .
 COPY go.sum .
 RUN go mod download
@@ -21,12 +21,12 @@ ENV ACCESS_TOKEN=${ACCESS_TOKEN}
 ENV ACCESS_TOKEN_SECRET=${ACCESS_TOKEN_SECRET}
 ENV BEARER_TOKEN=${BEARER_TOKEN} 
 
-RUN go build -o /executable
+RUN go build -o executable .
 
-FROM golang:1.16.3-alpine
+FROM alpine:latest
+WORKDIR /root/
+COPY --from=builder /app/executable ./
 
-COPY --from=builder /executable .
-
-CMD [ "/executable" ]
+CMD [ "./executable" ]
 
 
