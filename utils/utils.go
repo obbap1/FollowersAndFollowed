@@ -14,12 +14,14 @@ import (
 
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
+	cache "github.com/hashicorp/golang-lru"
 	"github.com/joho/godotenv"
 )
 
 const (
 	ComparisonChecker = "following"
-	MyUserName        = "BirthdayTracker"
+	MyUserName        = "AmeboTracker"
+	FileHolder        = "holder.data"
 )
 
 type FollowersAndFollowed struct {
@@ -59,11 +61,11 @@ func AttachAt(s string) string {
 }
 
 func FormatSuccessMessage(follower, user string) string {
-	return "\n" + "Yes. " + AttachAt(follower) + " is following " + AttachAt(user)
+	return "\n" + "Yes. " + AttachAt(user) + " is following " + AttachAt(follower)
 }
 
 func FormatFailureMessage(follower, user string) string {
-	return "\n" + "No. " + AttachAt(follower) + " is NOT following " + AttachAt(user)
+	return "\n" + "No. " + AttachAt(user) + " is NOT following " + AttachAt(follower)
 }
 
 // Sets up the twitter client
@@ -125,8 +127,6 @@ func FindFollowersAndFollowed(sentence string) (*FollowersAndFollowed, error) {
 	allArray = *setupArray(&allArray, &cleanLeftArray)
 	allArray = *setupArray(&allArray, &cleanRightArray)
 
-	fmt.Println(allArray)
-
 	if len(allArray) == 0 {
 		return nil, fmt.Errorf("no users to seach for")
 	}
@@ -139,7 +139,7 @@ func FindFollowersAndFollowed(sentence string) (*FollowersAndFollowed, error) {
 
 }
 
-func FetchMentions() error {
+func FetchMentions(lruCache *cache.Cache) error {
 	err := godotenv.Load(".env")
 
 	if err != nil {
@@ -152,7 +152,19 @@ func FetchMentions() error {
 
 	MY_ID := os.Getenv("MY_ID")
 
-	resp, err := httpClient.Get(twitterBaseUrl + MY_ID + "/mentions")
+	url := twitterBaseUrl + MY_ID + "/mentions"
+
+	fileData, err := ioutil.ReadFile(FileHolder)
+
+	if err != nil {
+		return fmt.Errorf("an error occured while reading file %s: %s", FileHolder, err)
+	}
+
+	if len(fileData) != 0 {
+		url += "?since_id=" + strings.TrimSpace(string(fileData))
+	}
+
+	resp, err := httpClient.Get(url)
 
 	if err != nil {
 		return fmt.Errorf("an error occured while fetching the user's details: %s", err)
@@ -170,11 +182,20 @@ func FetchMentions() error {
 		return fmt.Errorf("an error occured while unmarshalling the request body: %s", err)
 	}
 
+	resultMap := data["meta"].(map[string]interface{})
+
+	if resultMap["result_count"].(float64) == 0 {
+		fmt.Println("There are no new mentions!")
+		return nil
+	}
+
+	fmt.Printf("Number of mentions to process: %f \n", resultMap["result_count"].(float64))
+
 	content := data["data"].([]interface{})
 
 	mentionsChan := make(chan string, len(content))
 
-	for _, v := range content {
+	for k, v := range content {
 		vi := v.(map[string]interface{})
 
 		text := vi["text"].(string)
@@ -185,23 +206,37 @@ func FetchMentions() error {
 			return fmt.Errorf("error while parsing int64: %s", err)
 		}
 
+		if k == len(content)-1 {
+			ioutil.WriteFile(FileHolder, []byte(strconv.FormatInt(id, 10)), 0777)
+		}
+
 		go func(s string, id int64) {
-			tweet, err := FetchResults(s)
+			tweet, err := FetchResults(s, lruCache)
 			if err != nil {
 				mentionsChan <- fmt.Sprintf("Error is: %s", err)
 				return
 			}
 			// TODO: ratelimit here as well
 
-			// send tweet
-			tweetSent, _, err := client.Statuses.Update(tweet, &twitter.StatusUpdateParams{InReplyToStatusID: id})
-
 			if err != nil {
 				mentionsChan <- fmt.Sprintf("Error is: %s", err)
 				return
 			}
-			// send signal
-			mentionsChan <- fmt.Sprintf("\n done with processing: %s", tweetSent.Text)
+
+			if os.Getenv("STUB_TWEET") == "true" {
+				fmt.Println("\n Fake sending tweet...", tweet)
+				mentionsChan <- fmt.Sprintf("\n done with processing: %s", tweet)
+			} else {
+				// send tweet
+				tweetSent, _, err := client.Statuses.Update(tweet, &twitter.StatusUpdateParams{InReplyToStatusID: id})
+				if err != nil {
+					mentionsChan <- fmt.Sprintf("Error is: %s", err)
+					return
+				}
+				// send signal
+				mentionsChan <- fmt.Sprintf("\n done with processing: %s", tweetSent.Text)
+
+			}
 
 		}(text, id)
 
@@ -215,7 +250,8 @@ func FetchMentions() error {
 
 }
 
-func FetchResults(sentence string) (string, error) {
+func FetchResults(sentence string, lruCache *cache.Cache) (string, error) {
+
 	values, err := FindFollowersAndFollowed(sentence)
 	if err != nil {
 		return "", fmt.Errorf("an error occured while formatting the sentence: %s", err)
@@ -235,7 +271,7 @@ func FetchResults(sentence string) (string, error) {
 	response := ""
 
 	for _, user := range values.LeftArray {
-		// TODO: check if followers / following count is lesser and use the lesser array in size
+
 		limit, _, err := client.RateLimits.Status(&twitter.RateLimitParams{Resources: []string{"friends"}})
 
 		rateLimit := limit.Resources.Friends["/friends/list"]
@@ -244,7 +280,7 @@ func FetchResults(sentence string) (string, error) {
 
 		if rateLimit.Remaining == 0 {
 			duration := int64(rateLimit.Reset) - time.Now().Unix()
-			fmt.Printf("Sleeping for %d", duration)
+			fmt.Printf("Sleeping for %d seconds.........******************..............*********", duration)
 			time.Sleep(time.Duration(duration) * time.Second)
 		}
 
@@ -256,9 +292,20 @@ func FetchResults(sentence string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("an error occured while fetching the user's details: %s", err)
 		}
-		// TODO: implement caching with redis / in memory, so we dont loop through users all the time
 
 		for _, follower := range values.RightArray {
+			// check if value is in cache
+			if lruCache.Contains(user + ":" + follower) {
+				fmt.Printf("Getting value for %s and %s from cache!", user, follower)
+				if val, ok := lruCache.Get(user + ":" + follower); ok {
+					if val.(bool) {
+						response += FormatSuccessMessage(follower, user)
+					} else {
+						response += FormatFailureMessage(follower, user)
+					}
+					continue
+				}
+			}
 			var chosenUser twitter.User
 			for _, u := range users {
 				if u.ScreenName == follower {
@@ -306,6 +353,8 @@ func FetchResults(sentence string) (string, error) {
 				response += FormatFailureMessage(follower, user)
 			}
 
+			//add to cache
+			lruCache.Add(user+":"+follower, found)
 		}
 
 	}
