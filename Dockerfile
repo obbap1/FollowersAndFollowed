@@ -1,4 +1,4 @@
-FROM golang:1.16.3-alpine
+FROM golang:1.16.3-alpine AS builder
 WORKDIR /app
 COPY go.mod .
 COPY go.sum .
@@ -22,6 +22,10 @@ ENV ACCESS_TOKEN_SECRET=${ACCESS_TOKEN_SECRET}
 ENV BEARER_TOKEN=${BEARER_TOKEN} 
 
 RUN go build -o /executable
+
+FROM golang:1.16.3-alpine
+
+COPY --from=builder /executable .
 
 CMD [ "/executable" ]
 
