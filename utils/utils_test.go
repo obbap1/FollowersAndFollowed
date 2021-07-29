@@ -67,8 +67,8 @@ func TestFindFollowersAndFollowed(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.True(t, len(third.LeftArray) == 1, "Left array should have 3 items in it")
-	assert.True(t, len(third.RightArray) == 3, "Right array should have 1 items in it")
+	assert.True(t, len(third.LeftArray) == 3, "Left array should have 3 items in it")
+	assert.True(t, len(third.RightArray) == 1, "Right array should have 1 items in it")
 	assert.True(t, len(third.AllArray) == 4, "All array should have 4 items in it")
 
 }
