@@ -60,12 +60,16 @@ func AttachAt(s string) string {
 	return "@" + s
 }
 
+func AttachDummyAt(s string) string {
+	return "@/" + s
+}
+
 func FormatSuccessMessage(follower, user string) string {
-	return "\n" + "Yes. " + AttachAt(user) + " is following " + AttachAt(follower)
+	return "\n" + "Yes. " + AttachDummyAt(user) + " is following " + AttachDummyAt(follower)
 }
 
 func FormatFailureMessage(follower, user string) string {
-	return "\n" + "No. " + AttachAt(user) + " is NOT following " + AttachAt(follower)
+	return "\n" + "No. " + AttachDummyAt(user) + " is NOT following " + AttachDummyAt(follower)
 }
 
 // Sets up the twitter client
