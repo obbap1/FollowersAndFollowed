@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -15,7 +14,6 @@ import (
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
 	cache "github.com/hashicorp/golang-lru"
-	"github.com/joho/godotenv"
 )
 
 const (
@@ -144,11 +142,6 @@ func FindFollowersAndFollowed(sentence string) (*FollowersAndFollowed, error) {
 }
 
 func FetchMentions(lruCache *cache.Cache) error {
-	err := godotenv.Load(".env")
-
-	if err != nil {
-		log.Fatalf("Error loading .env file")
-	}
 
 	client, httpClient := SetupTwitterClient()
 
