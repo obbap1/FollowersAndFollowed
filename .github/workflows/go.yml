@@ -24,15 +24,6 @@ jobs:
     - name: Docker Auth
       run: docker login -u "${{secrets.U}}" -p "${{secrets.P}}" docker.io
     - name: Build Image
-      run:  | 
-        docker build . --tag "pbaba11/amebo:latest" \ 
-          --build-arg  MY_ID="${{secrets.MY_ID}}" \ 
-          --build-arg STUB_TWEET="${{secrets.STUB_TWEET}}" \ 
-          --build-arg API_KEY="${{secrets.API_KEY}}" \ 
-          --build-arg API_SECRET_KEY="${{secrets.API_SECRET_KEY}}" \ 
-          --build-arg ACCESS_TOKEN="${{secrets.ACCESS_TOKEN}}" \ 
-          --build-arg ACCESS_TOKEN_SECRET="${{secrets.ACCESS_TOKEN_SECRET}}" \ 
-          --build-arg BEARER_TOKEN="${{secrets.BEARER_TOKEN}}" \ 
-         
+      run: docker build . --tag "pbaba11/amebo:latest" --build-arg MY_ID="${{secrets.MY_ID}}" --build-arg STUB_TWEET="${{secrets.STUB_TWEET}}" --build-arg API_KEY="${{secrets.API_KEY}}" --build-arg API_SECRET_KEY="${{secrets.API_SECRET_KEY}}" --build-arg ACCESS_TOKEN="${{secrets.ACCESS_TOKEN}}" --build-arg ACCESS_TOKEN_SECRET="${{secrets.ACCESS_TOKEN_SECRET}}" --build-arg BEARER_TOKEN="${{secrets.BEARER_TOKEN}}" 
     - name: push to docker hub
       run: docker push pbaba11/amebo:latest
