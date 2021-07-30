@@ -280,15 +280,16 @@ func FetchResults(sentence string, lruCache *cache.Cache) (string, error) {
 	client, _ := SetupTwitterClient()
 
 	users, resp, err := client.Users.Lookup(&twitter.UserLookupParams{ScreenName: values.AllArray})
-	if err != nil {
-		return "", fmt.Errorf("\n an error occured while searching for the users on twitter: %s", err)
-	}
 
 	if resp.StatusCode == 429 {
 		// rate limiting
 		newTime := resp.Header["X-Rate-Limit-Reset"]
 		fmt.Println("rate limiting, time to sleep...", newTime)
 		time.Sleep(3 * time.Minute)
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("\n an error occured while searching for the users on twitter: %s", err)
 	}
 
 	if len(users) != len(values.AllArray) {
@@ -299,26 +300,7 @@ func FetchResults(sentence string, lruCache *cache.Cache) (string, error) {
 
 	for _, user := range values.LeftArray {
 
-		limit, _, err := client.RateLimits.Status(&twitter.RateLimitParams{Resources: []string{"friends"}})
-
-		rateLimit := limit.Resources.Friends["/friends/list"]
-
-		fmt.Printf("\n %d of %d requests are left", rateLimit.Remaining, rateLimit.Limit)
-
-		if rateLimit.Remaining == 0 {
-			duration := int64(rateLimit.Reset) - time.Now().Unix()
-			fmt.Printf("\n Sleeping for %d seconds.........******************..............*********", duration)
-			time.Sleep(time.Duration(duration) * time.Second)
-		}
-
-		if err != nil {
-			return "", fmt.Errorf("\n an error occured while fetching the rate limits: %s", err)
-		}
-
 		resp, httpResp, err := client.Friends.IDs(&twitter.FriendIDParams{ScreenName: user})
-		if err != nil {
-			return "", fmt.Errorf("\n an error occured while fetching the user's details: %s", err)
-		}
 
 		if httpResp.StatusCode == 429 {
 			// rate limiting
@@ -326,6 +308,10 @@ func FetchResults(sentence string, lruCache *cache.Cache) (string, error) {
 			newTime := httpResp.Header["X-Rate-Limit-Reset"]
 			fmt.Println("newTime!", newTime)
 			time.Sleep(3 * time.Minute)
+		}
+
+		if err != nil {
+			return "", fmt.Errorf("\n an error occured while fetching the user's details: %s", err)
 		}
 
 		for _, follower := range values.RightArray {
@@ -367,15 +353,16 @@ func FetchResults(sentence string, lruCache *cache.Cache) (string, error) {
 
 			for !found && cursor != 0 {
 				resp, httpResp, err := client.Friends.IDs(&twitter.FriendIDParams{ScreenName: user, Cursor: cursor})
-				if err != nil {
-					return "", fmt.Errorf("\n an error occured while fetching the user's details: %s", err)
-				}
 
 				if httpResp.StatusCode == 429 {
 					// rate limiting
 					newTime := httpResp.Header["X-Rate-Limit-Reset"]
 					fmt.Println("rate limiting, time to sleep", newTime)
 					time.Sleep(3 * time.Minute)
+				}
+
+				if err != nil {
+					return "", fmt.Errorf("\n an error occured while fetching the user's details: %s", err)
 				}
 
 				cursor = resp.NextCursor
