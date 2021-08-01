@@ -28,6 +28,7 @@ func setupCache() (*cache.Cache, error) {
 func main() {
 	c := cron.New()
 	lruCache, err := setupCache()
+
 	if err != nil {
 		fmt.Printf("\n Error setting up cache. Error is: %s", err)
 		return
@@ -49,6 +50,7 @@ func main() {
 	fmt.Println("Starting, waiting for cron jobs...")
 
 	c.Start()
+	defer c.Stop()
 
 	select {}
 }

@@ -1,0 +1,16 @@
+version: '3'
+services:
+  amebo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      redis:
+        condition: service_started
+
+  redis:
+    build: ./redis/.
+    restart: always
+    ports:
+      - '6330:6379'

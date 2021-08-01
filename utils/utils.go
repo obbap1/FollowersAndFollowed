@@ -11,15 +11,22 @@ import (
 	"strings"
 	"time"
 
+	"context"
+
+	"github.com/bsm/redislock"
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
+	"github.com/go-redis/redis/v8"
 	cache "github.com/hashicorp/golang-lru"
 )
+
+var ctx = context.Background()
 
 const (
 	ComparisonChecker = "following"
 	MyUserName        = "AmeboTracker"
-	FileHolder        = "holder.data"
+	MentionKey        = "mention_id"
+	RateLimitKey      = "rate_limit_state"
 )
 
 type FollowersAndFollowed struct {
@@ -31,8 +38,49 @@ type FollowersAndFollowed struct {
 var (
 	c              *twitter.Client
 	h              *http.Client
+	r              *redis.Client
 	twitterBaseUrl = "https://api.twitter.com/2/users/"
 )
+
+func checkRates(httpResp http.Response, rateLimitState string, redisClient *redis.Client) (string, error) {
+	// rate limiting
+	newTime := httpResp.Header["X-Rate-Limit-Reset"]
+	t, err := strconv.Atoi(newTime[0])
+	if err != nil {
+		return "", fmt.Errorf("an error occured converting the string to an int")
+	}
+	sleepTime := time.Duration(t) - time.Duration(time.Now().Unix())
+	fmt.Println("rate limiting, time to sleep...", sleepTime)
+	if rateLimitState == "true" {
+		locker := redislock.New(redisClient)
+		lock, err := locker.Obtain(ctx, RateLimitKey, 100*time.Millisecond, nil)
+		if err == redislock.ErrNotObtained {
+			fmt.Println("Could not obtain lock!")
+		} else if err != nil {
+			return "", fmt.Errorf("an error occured fetching redis lock")
+		} else if err == nil {
+			redisClient.Set(ctx, RateLimitKey, "false", 0)
+			lock.Release(ctx)
+		}
+	}
+	time.Sleep(sleepTime * time.Minute)
+
+	return "", nil
+}
+
+func setupCache() *redis.Client {
+	if r != nil {
+		return r
+	}
+	host, port := os.Getenv("REDIS_HOST"), os.Getenv("REDIS_PORT")
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     host + ":" + port,
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+
+	return rdb
+}
 
 func setupArray(allArray, arr *[]string) *[]string {
 	for k := range *arr {
@@ -151,14 +199,16 @@ func FetchMentions(lruCache *cache.Cache) error {
 
 	url := twitterBaseUrl + MY_ID + "/mentions"
 
-	fileData, err := ioutil.ReadFile(FileHolder)
+	redisClient := setupCache()
+
+	val, err := redisClient.Get(ctx, MentionKey).Result()
 
 	if err != nil {
-		return fmt.Errorf("\n an error occured while reading file %s: %s", FileHolder, err)
+		return fmt.Errorf("\n Error reading from redis: %s", err)
 	}
 
-	if len(fileData) != 0 {
-		url += "?since_id=" + strings.TrimSpace(string(fileData))
+	if val != "" {
+		url += "?since_id=" + strings.TrimSpace(val)
 	}
 
 	resp, err := httpClient.Get(url)
@@ -166,8 +216,13 @@ func FetchMentions(lruCache *cache.Cache) error {
 	if resp.StatusCode == 429 {
 		// rate limiting
 		newTime := resp.Header["X-Rate-Limit-Reset"]
-		fmt.Println("rate limiting, time to sleep...", newTime)
-		time.Sleep(3 * time.Minute)
+		t, err := strconv.Atoi(newTime[0])
+		if err != nil {
+			return fmt.Errorf("an error occured converting the string to an int")
+		}
+		sleepTime := time.Duration(t) - time.Duration(time.Now().Unix())
+		fmt.Println("rate limiting, time to sleep...", sleepTime)
+		time.Sleep(sleepTime * time.Minute)
 	}
 
 	if err != nil {
@@ -219,7 +274,10 @@ func FetchMentions(lruCache *cache.Cache) error {
 		}
 
 		if k == len(content)-1 {
-			ioutil.WriteFile(FileHolder, []byte(strconv.FormatInt(id, 10)), 0777)
+			err := redisClient.Set(ctx, MentionKey, id, 0).Err()
+			if err != nil {
+				return fmt.Errorf("\n error while setting to cache: %s", err)
+			}
 		}
 
 		go func(s string, id int64) {
@@ -245,8 +303,14 @@ func FetchMentions(lruCache *cache.Cache) error {
 				if resp.StatusCode == 429 {
 					// rate limiting
 					newTime := resp.Header["X-Rate-Limit-Reset"]
-					fmt.Println("rate limiting, time to sleep...", newTime)
-					time.Sleep(3 * time.Minute)
+					t, err := strconv.Atoi(newTime[0])
+					if err != nil {
+						mentionsChan <- fmt.Sprintf("an error occured converting the string to an int: %s", err)
+						return
+					}
+					sleepTime := time.Duration(t) - time.Duration(time.Now().Unix())
+					fmt.Println("rate limiting, time to sleep...", sleepTime)
+					time.Sleep(sleepTime * time.Minute)
 				}
 
 				if err != nil {
@@ -279,13 +343,45 @@ func FetchResults(sentence string, lruCache *cache.Cache) (string, error) {
 
 	client, _ := SetupTwitterClient()
 
+	redisClient := setupCache()
+
+	ctx := context.Background()
+
+	rateLimitState, err := redisClient.Get(ctx, RateLimitKey).Result()
+
+	if err != nil {
+		return "", fmt.Errorf("an error occured fetching rate limit state from redis")
+	}
+
+	// check if rate limit has been set by any goroutine and then sleep for a while
+	if rateLimitState == "true" {
+		time.Sleep(3 * time.Minute)
+		// if rate limit is still true, get the redis lock and then set it to false.
+		// This is done so that every goroutine doesnt sleep eternally
+		if rateLimitState == "true" {
+			locker := redislock.New(redisClient)
+			lock, err := locker.Obtain(ctx, RateLimitKey, 100*time.Millisecond, nil)
+			if err == redislock.ErrNotObtained {
+				fmt.Println("Could not obtain lock!")
+			} else if err != nil {
+				return "", fmt.Errorf("an error occured fetching redis lock")
+			} else if err == nil {
+				redisClient.Set(ctx, RateLimitKey, "false", 0)
+				lock.Release(ctx)
+			}
+		}
+
+	}
+
 	users, resp, err := client.Users.Lookup(&twitter.UserLookupParams{ScreenName: values.AllArray})
 
 	if resp.StatusCode == 429 {
 		// rate limiting
-		newTime := resp.Header["X-Rate-Limit-Reset"]
-		fmt.Println("rate limiting, time to sleep...", newTime)
-		time.Sleep(3 * time.Minute)
+		_, err := checkRates(*resp, rateLimitState, redisClient)
+
+		if err != nil {
+			return "", fmt.Errorf("an error occured handling rate limits: %s", err)
+		}
 	}
 
 	if err != nil {
@@ -304,10 +400,11 @@ func FetchResults(sentence string, lruCache *cache.Cache) (string, error) {
 
 		if httpResp.StatusCode == 429 {
 			// rate limiting
-			fmt.Println("\n too many requests. time to sleep...")
-			newTime := httpResp.Header["X-Rate-Limit-Reset"]
-			fmt.Println("newTime!", newTime)
-			time.Sleep(3 * time.Minute)
+			_, err := checkRates(*httpResp, rateLimitState, redisClient)
+
+			if err != nil {
+				return "", fmt.Errorf("an error occured handling rate limits: %s", err)
+			}
 		}
 
 		if err != nil {
@@ -356,9 +453,11 @@ func FetchResults(sentence string, lruCache *cache.Cache) (string, error) {
 
 				if httpResp.StatusCode == 429 {
 					// rate limiting
-					newTime := httpResp.Header["X-Rate-Limit-Reset"]
-					fmt.Println("rate limiting, time to sleep", newTime)
-					time.Sleep(3 * time.Minute)
+					_, err := checkRates(*httpResp, rateLimitState, redisClient)
+
+					if err != nil {
+						return "", fmt.Errorf("an error occured handling rate limits: %s", err)
+					}
 				}
 
 				if err != nil {
