@@ -28,4 +28,4 @@ jobs:
     - name: push to docker hub
       run: docker push pbaba11/amebo:latest
     - name: Deploy to ECS
-      run: docker run fabfuel/ecs-deploy:1.10.2 ecs deploy amebo-cluster amebo-service --region us-east-2 --access-key-id ${{secrets.ACCESS_KEY_ID}} --secret-access-key ${{secrets.SECRET_ACCESS_KEY}}
+      run: docker run fabfuel/ecs-deploy:1.10.2 ecs deploy amebs amebs-service --region us-east-2 --access-key-id ${{secrets.ACCESS_KEY_ID}} --secret-access-key ${{secrets.SECRET_ACCESS_KEY}}
