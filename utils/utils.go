@@ -203,15 +203,26 @@ func FetchMentions(lruCache *cache.Cache) error {
 
 	val, err := redisClient.Get(ctx, MentionKey).Result()
 
-	if err != nil {
+	if err == redis.Nil {
+		fmt.Println("not found. moving on")
+	} else if err != nil {
 		return fmt.Errorf("\n Error reading from redis: %s", err)
-	}
-
-	if val != "" {
+	} else if val != "" {
+		fmt.Println("what ???")
 		url += "?since_id=" + strings.TrimSpace(val)
 	}
 
 	resp, err := httpClient.Get(url)
+
+	if err != nil {
+		return fmt.Errorf("\n an error occured while fetching the user's details: %s", err)
+	}
+
+	fmt.Printf("resp - - %+v, %s", resp, url)
+
+	if resp == nil {
+		return fmt.Errorf("no response found")
+	}
 
 	if resp.StatusCode == 429 {
 		// rate limiting
@@ -223,10 +234,6 @@ func FetchMentions(lruCache *cache.Cache) error {
 		sleepTime := time.Duration(t) - time.Duration(time.Now().Unix())
 		fmt.Println("rate limiting, time to sleep...", sleepTime)
 		time.Sleep(sleepTime * time.Minute)
-	}
-
-	if err != nil {
-		return fmt.Errorf("\n an error occured while fetching the user's details: %s", err)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)

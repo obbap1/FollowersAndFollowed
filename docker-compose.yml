@@ -8,9 +8,10 @@ services:
     depends_on:
       redis:
         condition: service_started
+    network_mode: host
 
   redis:
     build: ./redis/.
     restart: always
     ports:
-      - '6330:6379'
+      - '6379:6379'
