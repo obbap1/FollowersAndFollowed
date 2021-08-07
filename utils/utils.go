@@ -356,7 +356,9 @@ func FetchResults(sentence string, lruCache *cache.Cache) (string, error) {
 
 	rateLimitState, err := redisClient.Get(ctx, RateLimitKey).Result()
 
-	if err != nil {
+	if err == redis.Nil {
+		fmt.Println("not found. moving on...")
+	} else if err != nil {
 		return "", fmt.Errorf("an error occured fetching rate limit state from redis")
 	}
 
