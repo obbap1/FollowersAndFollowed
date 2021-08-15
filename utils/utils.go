@@ -193,6 +193,8 @@ func FindFollowersAndFollowed(sentence string) (*FollowersAndFollowed, error) {
 
 func FetchMentions(lruCache *cache.Cache) error {
 
+	fmt.Println("id - - - ", os.Getenv("MY_ID"))
+
 	client, httpClient := SetupTwitterClient()
 
 	data := make(map[string]interface{})
