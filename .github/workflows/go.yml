@@ -33,3 +33,4 @@ jobs:
       run: ecs-cli configure --cluster amebo --default-launch-type FARGATE --config-name amebo --region us-east-2 && ecs-cli configure profile --access-key {{secrets.ACCESS_KEY_ID}} --secret-key {{secrets.SECRET_ACCESS_KEY}} --profile-name amebo-profile
     - name: Deploy to ECS
       run: ecs-cli compose --project-name amebo service up --ecs-profile amebo-profile
+      

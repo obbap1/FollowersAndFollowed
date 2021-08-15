@@ -5,13 +5,12 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: always
-    depends_on:
       redis:
         condition: service_started
     network_mode: host
 
-  redis:
-    build: ./redis/.
-    restart: always
-    ports:
-      - '6379:6379'
+  # redis:
+  #   build: ./redis/.
+  #   restart: always
+  #   ports:
+  #     - '6379:6379'
