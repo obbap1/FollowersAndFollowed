@@ -5,7 +5,6 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: always
-      condition: service_started
     network_mode: host
 
   # redis:
