@@ -29,7 +29,7 @@ jobs:
       run: docker push pbaba11/amebo:latest
     - name: Download ECS CLI
       run: curl -Lo /usr/local/bin/ecs-cli https://amazon-ecs-cli.s3.amazonaws.com/ecs-cli-linux-amd64-latest && chmod +x /usr/local/bin/ecs-cli
+    - name: Configure ECS CLI
+      run: ecs-cli configure --cluster amebo --default-launch-type FARGATE --config-name amebo --region us-east-2 && ecs-cli configure profile --access-key {{secrets.ACCESS_KEY_ID}} --secret-key {{secrets.SECRET_ACCESS_KEY}} --profile-name amebo-profile
     - name: Deploy to ECS
-      run: ecs-cli compose --project-name amebo service amebo-service --region us-east-2 --access-key-id ${{secrets.ACCESS_KEY_ID}} --secret-access-key ${{secrets.SECRET_ACCESS_KEY}}
-    # - name: Deploy to ECS
-    #   run: docker run fabfuel/ecs-deploy:1.10.2 ecs deploy amebo amebo-service --region us-east-2 --access-key-id ${{secrets.ACCESS_KEY_ID}} --secret-access-key ${{secrets.SECRET_ACCESS_KEY}}
+      run: ecs-cli compose --project-name amebo service up --ecs-profile amebo-profile
