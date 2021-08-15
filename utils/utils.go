@@ -125,6 +125,7 @@ func SetupTwitterClient() (*twitter.Client, *http.Client) {
 		return c, h
 	}
 	API_KEY, API_SECRET_KEY, ACCESS_TOKEN, ACCESS_TOKEN_SECRET := os.Getenv("API_KEY"), os.Getenv("API_SECRET_KEY"), os.Getenv("ACCESS_TOKEN"), os.Getenv("ACCESS_TOKEN_SECRET")
+	fmt.Println("keys - - - -", API_KEY, API_SECRET_KEY, ACCESS_TOKEN, ACCESS_TOKEN_SECRET)
 	config := oauth1.NewConfig(API_KEY, API_SECRET_KEY)
 	token := oauth1.NewToken(ACCESS_TOKEN, ACCESS_TOKEN_SECRET)
 	httpClient := config.Client(oauth1.NoContext, token)
