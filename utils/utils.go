@@ -72,10 +72,9 @@ func setupCache() *redis.Client {
 	if r != nil {
 		return r
 	}
-	host, port := os.Getenv("RHOST"), os.Getenv("RPORT")
-	fmt.Println("The host is, the port is", host, port)
+	// host, port := os.Getenv("RHOST"), os.Getenv("RPORT")
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     host + ":" + port,
+		Addr:     "amebo-cache.lgo6vz.ng.0001.use2.cache.amazonaws.com:6379",
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
@@ -125,7 +124,6 @@ func SetupTwitterClient() (*twitter.Client, *http.Client) {
 		return c, h
 	}
 	API_KEY, API_SECRET_KEY, ACCESS_TOKEN, ACCESS_TOKEN_SECRET := os.Getenv("API_KEY"), os.Getenv("API_SECRET_KEY"), os.Getenv("ACCESS_TOKEN"), os.Getenv("ACCESS_TOKEN_SECRET")
-	fmt.Println("keys - - - -", API_KEY, API_SECRET_KEY, ACCESS_TOKEN, ACCESS_TOKEN_SECRET)
 	config := oauth1.NewConfig(API_KEY, API_SECRET_KEY)
 	token := oauth1.NewToken(ACCESS_TOKEN, ACCESS_TOKEN_SECRET)
 	httpClient := config.Client(oauth1.NoContext, token)
@@ -193,8 +191,6 @@ func FindFollowersAndFollowed(sentence string) (*FollowersAndFollowed, error) {
 
 func FetchMentions(lruCache *cache.Cache) error {
 
-	fmt.Println("id - - - ", os.Getenv("MY_ID"))
-
 	client, httpClient := SetupTwitterClient()
 
 	data := make(map[string]interface{})
@@ -212,7 +208,6 @@ func FetchMentions(lruCache *cache.Cache) error {
 	} else if err != nil {
 		return fmt.Errorf("\n Error reading from redis: %s", err)
 	} else if val != "" {
-		fmt.Println("what ???")
 		url += "?since_id=" + strings.TrimSpace(val)
 	}
 
@@ -221,8 +216,6 @@ func FetchMentions(lruCache *cache.Cache) error {
 	if err != nil {
 		return fmt.Errorf("\n an error occured while fetching the user's details: %s", err)
 	}
-
-	fmt.Printf("resp - - %+v, %s", resp, url)
 
 	if resp == nil {
 		return fmt.Errorf("no response found")
