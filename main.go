@@ -33,8 +33,8 @@ func main() {
 		fmt.Printf("\n Error setting up cache. Error is: %s", err)
 		return
 	}
-	c.AddFunc("@every 5s", func() {
-		fmt.Println("\n Fetching Mentionssssss...")
+	c.AddFunc("@every 1m", func() {
+		fmt.Println("\n Fetching Mentions...")
 		err := utils.FetchMentions(lruCache)
 		if err != nil {
 			fmt.Printf("\n Error fetching mentions. Error is: %s", err)
