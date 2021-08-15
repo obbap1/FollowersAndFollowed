@@ -73,6 +73,7 @@ func setupCache() *redis.Client {
 		return r
 	}
 	host, port := os.Getenv("REDIS_HOST"), os.Getenv("REDIS_PORT")
+	fmt.Printf("The host is: %s, the port is: %s", host, port)
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     host + ":" + port,
 		Password: "", // no password set
