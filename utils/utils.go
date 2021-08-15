@@ -72,7 +72,7 @@ func setupCache() *redis.Client {
 	if r != nil {
 		return r
 	}
-	host, port := os.Getenv("REDIS_HOST"), os.Getenv("REDIS_PORT")
+	host, port := os.Getenv("RHOST"), os.Getenv("RPORT")
 	fmt.Println("The host is, the port is", host, port)
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     host + ":" + port,
